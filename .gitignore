@@ -1,0 +1,24 @@
+# 기본
+node_modules/
+.env
+dist/
+build/
+.DS_Store
+
+# (추가 추천 내용)
+# 1. 환경 변수 파일의 다른 버전들도 모두 무시 (예: .env.local, .env.development 등)
+.env.*
+
+# 2. 에러 로그 파일들 (npm 이나 yarn 에러 시 생성됨)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 3. 맥북 사용 시 생길 수 있는 시스템 임시 파일들
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
