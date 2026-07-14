@@ -4,3 +4,11 @@
 {"event_type":"purchase","user_id":"test_user_01","item_id":"item_07","event_time":"2026-05-23T08:57:05.810Z"}
 {"event_type":"view_detail","user_id":"test_user_05","item_id":"item_08","event_time":"2026-05-23T08:59:18.673Z"}
 {"event_type":"purchase","user_id":"test_user_05","item_id":"item_08","event_time":"2026-05-23T08:59:19.623Z"}
+{"event_type":"view_detail","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:06:36.056Z"}
+{"event_type":"add_to_cart","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:06:38.949Z"}
+{"event_type":"purchase","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:06:41.338Z"}
+{"event_type":"view_detail","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:07:28.465Z"}
+{"event_type":"view_detail","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:07:34.501Z"}
+{"event_type":"view_detail","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:07:35.546Z"}
+{"event_type":"view_detail","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:31:19.542Z"}
+{"event_type":"view_detail","user_id":"user_test_4","item_id":"item_02","event_time":"2026-05-26T09:37:41.859Z"}
