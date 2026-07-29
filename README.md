@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS items (
     image_url VARCHAR(255)
 );
 
+-- users 테이블
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     login_id VARCHAR(255) NOT NULL UNIQUE,
@@ -21,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- transactions 테이블
 CREATE TABLE IF NOT EXISTS transactions (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
+    user_id BIGINT NOT NULL,
     item_id VARCHAR(255) NOT NULL,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id),
