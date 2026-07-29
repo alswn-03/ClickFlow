@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model User {
+  id           String        @id @db.VarChar(255)
+  created_at   DateTime      @default(now())
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+model Item {
+  id           String        @id @db.VarChar(255)
+  item_name    String        @db.VarChar(255)
+  price        Int
+  information  String?       @db.Text
+  image_url    String?       @db.VarChar(255)
+  transactions Transaction[]
+
+  @@map("items")
+}
+
+model Transaction {
+  id        Int      @id @default(autoincrement())
+  user_id   String   @db.VarChar(255)
+  item_id   String   @db.VarChar(255)
+  timestamp DateTime @default(now())
+  user      User     @relation(fields: [user_id], references: [id])
+  item      Item     @relation(fields: [item_id], references: [id])
+
+  @@map("transactions")
+}
