@@ -4,6 +4,7 @@ node_modules/
 dist/
 build/
 .DS_Store
+src/generated/
 
 # (추가 추천 내용)
 # 1. 환경 변수 파일의 다른 버전들도 모두 무시 (예: .env.local, .env.development 등)

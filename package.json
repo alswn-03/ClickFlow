@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "start:server": "npm run dev --prefix server",
+    "dev": "concurrently \"pnpm --dir server run dev\" \"npm run dev --prefix client\"",
+    "start:server": "pnpm --dir server run dev",
     "start:client": "npm run dev --prefix client",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
