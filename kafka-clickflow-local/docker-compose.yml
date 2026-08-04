@@ -1,0 +1,48 @@
+version: "3.8" # docker-compose 파일 버전
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0 # KRaft 지원 버전(7.5 이상)
+    container_name: kafka # 컨테이너 이름 고정. (미지정 시 "프로젝트디렉터리명_서비스명_1" 형태로 자동 생성)
+
+    ports:
+      - "9092:9092" # "호스트 포트:컨테이너 포트" 매핑 (클라이언트가 붙는 PLAINTEXT 리스너(9092)만 호스트로 노출)
+      # "호스트의 9092로 들어오는 트래픽을 컨테이너의 9092로 전달해줘"
+      # Host = 지금 명령어를 치고 있는 실제 macOS 컴퓨터
+      # Container = docker-compose로 띄운 격리된 리눅스 환경. 카프카 프로세스는 이 안에서 돈다
+
+    environment:
+      # 역할명이 아닌 노드 자체를 식별하는 값 : KRaft 모드에서는 노드가 broker/controller 역할을 겸하거나 바뀔 수 있어서
+      KAFKA_NODE_ID: 1
+
+      # 노드(ID:1)가 클러스터에서 맡을 역할 ; broker(데이터 처리) + controller(메타데이터/쿼럼 관리)
+      KAFKA_PROCESS_ROLES: broker, controller # 하나의 노드가 두 역할을 모두 수행하는 combined 모드
+
+      # ✏️이 노드(ID:1)가 실제로 바인딩해서 수신 대기할 리스너 목록 ("프로토콜://호스트:포트" 형식)
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092, CONTROLLER://0.0.0.0:9093 # 0.0.0.0 바인딩 : 컨테이너 내부의 모든 네트워크 인터페이스에서 들어오는 연결을 받도록 설정
+
+      # 클라이언트(프로듀서/컨슈머)에게 실제로 광고(advertise)할 접속 주소
+      # 컨테이너 밖 호스트 머신에서 접속할 것이므로 localhost:9092로 지정 (컨테이너 내부 주소와 다름)
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+
+      # Controller 역할
+      # KRaft 컨트롤러 쿼럼에 참여하는 투표권자 목록 ("노드ID@호스트:포트" 형식, 콤마로 여러 개 나열)
+      # 컨트롤러가 1개뿐인 단일 노드 구성이라 자기 자신(1번 노드, kafka:9093)만 등록
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # KRaft 모드 : inter-broker 통신을 위해 listener를 지정해야
+      # 리스너는 PLAINTEXT(클라이언트용)와 CONTROLLER(Controller 간 통신용) 두 개로 분리
+      # 각 리스너 이름이 어떤 보안 프로토콜을 쓸지 매핑. 로컬 개발용이라 둘 다 암호화 없는 PLAINTEXT로 설정
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      # 컨트롤러 간 통신(쿼럼 합의 등)에 사용할 리스너 이름 -> 위에서 정의한 CONTROLLER 리스너를 지정
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # 브로커 간(inter-broker) 데이터 복제 통신에 사용할 리스너 이름 -> 위에서 정의한 PLAINTEXT 리스너를 지정
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # 컨슈머 오프셋을 저장하는 내부 토픽(__consumer_offsets)의 복제 계수(replication factor)
+      # 브로커가 1대뿐인 로컬 개발 환경이라 1로 설정 (운영 환경에서는 장애 대비를 위해 보통 3 이상 권장)
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+      # 클러스터 고유 ID : KRaft는 클러스터를 식별하는 고유 ID가 필요
+      # Base64로 인코딩된 16바이트 UUID 문자열. `kafka-storage.sh random-uuid` 명령으로 생성한 값을 그대로 사용
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
