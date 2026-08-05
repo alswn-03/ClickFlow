@@ -1,0 +1,28 @@
+version: "3.8" # docker-compose 파일 스키마 버전
+
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0 # KRaft 지원 버전(7.5 이상)
+    container_name: kafka # 컨테이너 이름 고정
+
+    ports:
+      - "9092:9092" # 호스트:컨테이너 '포트 매핑' (PLAINTEXT 리스너를 호스트로 노출)
+
+    environment:
+      KAFKA_NODE_ID: 1 # 노드 식별자 (KRaft는 broker/controller 겸용이라 node_id 사용)
+
+      KAFKA_PROCESS_ROLES: broker, controller # 이 노드가 겸할 역할 (combined 모드)
+
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092, CONTROLLER://0.0.0.0:9093 # 컨테이너 내부에서 수신 대기할 리스너
+
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092 # 클라이언트에게 알려줄 접속 주소
+
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093 # 컨트롤러 쿼럼 투표권자 목록 (nodeId@host:port)
+
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT # 리스너별 보안 프로토콜
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER # 컨트롤러 간 통신용 리스너
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT # 브로커 간 통신용 리스너
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 # __consumer_offsets 복제 계수 (단일 브로커라 1)
+
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # 클러스터 고유 ID (Base64 UUID)
