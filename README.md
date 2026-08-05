@@ -29,3 +29,23 @@ CREATE TABLE IF NOT EXISTS transactions (
     FOREIGN KEY (item_id) REFERENCES items(id)
 );
 ```
+
+## Kafka (로컬)
+
+`kafka-clickflow-local/docker-compose.yml` 기준 KRaft 단일 브로커 구성.
+
+1. 브로커 기동
+   ```bash
+   cd kafka-clickflow-local
+   docker compose up -d
+   ```
+
+2. `user-events` 토픽 생성 (최초 1회, 브로커가 완전히 뜬 뒤에 실행)
+   ```bash
+   docker exec -it kafka kafka-topics \
+     --create \
+     --topic user-events \
+     --bootstrap-server localhost:9092 \
+     --partitions 3 \
+     --replication-factor 1
+   ```
