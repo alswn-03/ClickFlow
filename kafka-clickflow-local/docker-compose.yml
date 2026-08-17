@@ -1,4 +1,4 @@
-version: "3.8" # docker-compose 파일 스키마 버전
+# version: "3.8" # docker-compose 파일 스키마 버전
 
 services:
   kafka:
@@ -11,9 +11,9 @@ services:
     environment:
       KAFKA_NODE_ID: 1 # 노드 식별자 (KRaft는 broker/controller 겸용이라 node_id 사용)
 
-      KAFKA_PROCESS_ROLES: broker, controller # 이 노드가 겸할 역할 (combined 모드)
+      KAFKA_PROCESS_ROLES: broker,controller # 이 노드가 겸할 역할 (combined 모드)
 
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092, CONTROLLER://0.0.0.0:9093 # 컨테이너 내부에서 수신 대기할 리스너
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093 # 컨테이너 내부에서 수신 대기할 리스너
 
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092 # 클라이언트에게 알려줄 접속 주소
 
@@ -26,3 +26,14 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1 # __consumer_offsets 복제 계수 (단일 브로커라 1)
 
       CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk" # 클러스터 고유 ID (Base64 UUID)
+
+  kafka-ui: # 여러 개의 Kafka 클러스터를 동시에 관리할 수 있게 설계된 도구
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: clickflow-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092 # kafka 컨테이너와 통신
