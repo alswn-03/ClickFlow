@@ -67,7 +67,7 @@ router.post("/transaction", async (req, res, next) => {
 const logEventSchema = z.looseObject({
   event_type: z.string(),
   user_id: z.string(),
-  item_id: z.string().optional(),
+  item_id: z.string(),
 });
 
 router.post("/log", (req, res, next) => {
