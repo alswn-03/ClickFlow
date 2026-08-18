@@ -63,7 +63,7 @@ const logEventSchema = z.looseObject({
 router.post("/log", (req, res, next) => {
   try {
     const event = logEventSchema.parse(req.body);
-    const logData = { ...event, event_time: new Date().toISOString() };
+    const logData = { ...event, event_time: new Date().toISOString() }; //✍️ 이벤트의 timestamp : 서버가 요청을 받아 핸들러를 실행하는 시점
 
     fs.appendFileSync(LOG_FILE_PATH, JSON.stringify(logData) + "\n");
 
