@@ -33,7 +33,7 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-// --- POST /api/transaction ---
+// --- POST /api/transaction (core purchase write; also emits the corresponding event log entry) ---
 const transactionSchema = z.object({
   user_id: z.string().min(1),
   item_id: z.string().min(1),
@@ -46,30 +46,29 @@ router.post("/transaction", async (req, res, next) => {
     const transaction = await prisma.transaction.create({
       data: { user_id, item_id },
     });
+    const transactionId = String(transaction.id);
 
-    res
-      .status(200)
-      .json({ success: true, transaction_id: String(transaction.id) });
+    const logData = {
+      event_type: "transaction",
+      user_id,
+      item_id,
+      transaction_id: transactionId,
+      event_time: new Date().toISOString(), //✍️ 이벤트의 timestamp : 서버가 요청을 받아 핸들러를 실행하는 시점
+    };
+    fs.appendFileSync(LOG_FILE_PATH, JSON.stringify(logData) + "\n");
+
+    res.status(200).json({ success: true, transaction_id: transactionId });
   } catch (err) {
     next(err);
   }
 });
 
-// --- POST /api/log (file-based event log, not stored in the DB) ---
-const logEventSchema = z
-  .looseObject({
-    event_type: z.string(),
-    user_id: z.string(), // ('user_id') || 'anonymous'
-    item_id: z.string(),
-    transaction_id: z.string().optional(),
-  })
-  .refine(
-    (data) => data.event_type !== "transaction" || !!data.transaction_id,
-    {
-      message: "transaction_id is required when event_type is 'transaction'",
-      path: ["transaction_id"],
-    },
-  );
+// --- POST /api/log (generic, best-effort analytics event log; not stored in the DB) ---
+const logEventSchema = z.looseObject({
+  event_type: z.string(),
+  user_id: z.string(),
+  item_id: z.string().optional(),
+});
 
 router.post("/log", (req, res, next) => {
   try {

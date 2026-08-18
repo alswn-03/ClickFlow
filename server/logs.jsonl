@@ -24,3 +24,11 @@
 {"event_type":"addtocart","user_id":"test_user_20","item_id":"item_07","event_time":"2026-08-18T09:13:21.616Z"}
 {"event_type":"view","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T09:45:42.628Z"}
 {"event_type":"transaction","user_id":"test_user_20","item_id":"item_02","transaction_id":"40","event_time":"2026-08-18T09:45:44.333Z"}
+{"event_type":"view","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T10:04:01.017Z"}
+{"event_type":"view","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T10:04:28.999Z"}
+{"event_type":"view","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T10:04:40.014Z"}
+{"event_type":"view","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T10:04:51.000Z"}
+{"event_type":"view","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T10:05:02.003Z"}
+{"event_type":"view","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T10:05:06.999Z"}
+{"event_type":"addtocart","user_id":"test_user_20","item_id":"item_02","event_time":"2026-08-18T10:05:58.966Z"}
+{"event_type":"transaction","user_id":"test_user_20","item_id":"item_02","transaction_id":"41","event_time":"2026-08-18T10:06:02.283Z"}
