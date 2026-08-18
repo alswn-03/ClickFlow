@@ -1,19 +1,25 @@
 # Event Schema
 
+이벤트는 두 개의 라우트로 분리되어 처리된다.
+
+`/api/transaction`은 MySQL INSERT가 필요한 핵심 비즈니스 로직(구매)을 다루고, `/api/log`는 DB 저장 없이 파일 로그로 적재되는 범용 분석 이벤트(view, addtocart)를 다룬다.
+
+두 라우트 모두 `event_time`은 서버가 요청을 받아 핸들러를 실행하는 시점에 `new Date().toISOString()`으로 직접 채운다. (현재는 Kafka 연동 전 단계로, `fs.appendFileSync`를 통해 로컬 로그 파일에 적재하고 있다.)
+
 #### 1. /api/log — 공용 분석 이벤트 (view, addtocart)
 
-```
+```json
 {
-  "event_type": "view" | "addtocart",
+  "event_type": "view | addtocart",
   "user_id": "string",
-  "item_id": "string (optional)",
-  "event_time": "string (ISO 8601, 서버 생성)"
+  "item_id": "string",
+  "event_time": "ISO 8601 string, 서버 생성"
 }
 ```
 
 #### 2. /api/transaction — 구매 이벤트 (MySQL INSERT + 로그 append, 단일 요청)
 
-```
+```json
 {
   "event_type": "transaction",
   "user_id": "string",

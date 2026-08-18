@@ -65,7 +65,7 @@ router.post("/transaction", async (req, res, next) => {
 
 // --- POST /api/log (generic, best-effort analytics event log; not stored in the DB) ---
 const logEventSchema = z.looseObject({
-  event_type: z.string(),
+  event_type: z.enum(["view", "addtocart"]),
   user_id: z.string(),
   item_id: z.string(),
 });
