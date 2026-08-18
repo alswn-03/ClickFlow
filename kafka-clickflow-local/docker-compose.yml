@@ -13,13 +13,15 @@ services:
 
       KAFKA_PROCESS_ROLES: broker,controller # 이 노드가 겸할 역할 (combined 모드)
 
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093 # 컨테이너 내부에서 수신 대기할 리스너
+      # 컨테이너 내부에서 수신 대기할 리스너 : PLAINTEXT(컨테이너간용), PLAINTEXT_HOST(호스트용), CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
 
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092 # 클라이언트에게 알려줄 접속 주소
+      # 클라이언트에게 알려줄 접속 주소
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
 
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093 # 컨트롤러 쿼럼 투표권자 목록 (nodeId@host:port)
 
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT # 리스너별 보안 프로토콜
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT, PLAINTEXT_HOST:PLAINTEXT # 리스너별 보안 프로토콜
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER # 컨트롤러 간 통신용 리스너
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT # 브로커 간 통신용 리스너
 
@@ -36,4 +38,4 @@ services:
       - "8080:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: clickflow-local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092 # kafka 컨테이너와 통신
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092 # kafka 컨테이너끼리 통신하는 포트
