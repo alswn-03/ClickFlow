@@ -71,3 +71,44 @@ CREATE TABLE IF NOT EXISTS transactions (
     ],
   });
   ```
+
+### Kafka UI (메시지/클러스터 상태 확인용)
+
+토픽·파티션·컨슈머 그룹 상태를 GUI로 확인하기 위해 `docker-compose.yml`에 `kafka-ui`(provectuslabs/kafka-ui) 서비스를 추가로 구성.
+
+```bash
+docker compose up -d kafka-ui
+```
+
+`http://localhost:8080` 접속 후 `clickflow-local` 클러스터에서 토픽/파티션/컨슈머 상태 확인 가능.
+
+#### 리스너를 3개로 분리한 이유
+
+최초 구성에서는 `PLAINTEXT` 리스너 하나로 `localhost:9092`만 광고(advertise)하도록 했는데, 이 경우 `kafka-ui`처럼 **별도 컨테이너에서 브로커에 접속하는 상황**에서 연결이 계속 실패했다. `localhost`가 브로커 자신이 아니라 접속을 시도하는 컨테이너(kafka-ui) 자기 자신을 가리키기 때문. 이를 해결하기 위해 리스너를 용도별로 분리함.
+
+```yaml
+KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+```
+
+| 리스너 이름    | 포트  | 용도                           | 광고 주소        |
+| -------------- | ----- | ------------------------------ | ---------------- |
+| PLAINTEXT      | 29092 | 컨테이너 간 통신 (kafka-ui 등) | `kafka:29092`    |
+| PLAINTEXT_HOST | 9092  | 호스트(로컬 PC)에서 접속       | `localhost:9092` |
+| CONTROLLER     | 9093  | KRaft 내부 통신 전용           | 광고 안 함       |
+
+`kafka-ui`의 `KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS`는 컨테이너 간 통신이므로 `kafka:29092`를 사용.
+
+> 리스너 등 브로커 환경변수를 변경한 경우, 기존 데이터 볼륨에 남은 메타데이터와 충돌(`DuplicateBrokerRegistrationException`)이 발생할 수 있어 `docker compose down -v`로 볼륨까지 초기화 후 재기동해야 함.
+
+### 현재 상태
+
+| 항목                                                  | 상태                                             |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| Kafka 브로커 (KRaft, combined mode)                   | 실행 중 (버전 3.6-IV2, 브로커 1대)               |
+| 리스너 구성 (PLAINTEXT / PLAINTEXT_HOST / CONTROLLER) | 분리 적용 완료                                   |
+| Kafka UI ↔ 브로커 연결                                | 정상 (Online, `clickflow-local` 클러스터 인식됨) |
+| `user-events` 토픽                                    | 재생성 완료 (파티션 3, replication factor 1)     |
+| 파티션 키(user_id) 적용                               | 미착수 — Express 프로듀서 구현 시 적용 예정      |
+
+다음 단계: Express API에 Kafka 프로듀서 연동, S3 적재용 컨슈머 및 추천 엔진용 컨슈머 구현.
