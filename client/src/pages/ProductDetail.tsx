@@ -35,8 +35,8 @@ const ProductDetail: React.FC = () => {
         const userId = localStorage.getItem('user_id');
         if (!userId || !id) return;
         try {
-            await axios.post(`${API_URL}/transaction`, { user_id: userId, item_id: id });
-            trackEvent('transaction', id);
+            const { data } = await axios.post(`${API_URL}/transaction`, { user_id: userId, item_id: id });
+            trackEvent('transaction', id, data.transaction_id);
             alert('결제가 완료되었습니다!');
         } catch (err) {
             console.error('Purchase failed:', err);

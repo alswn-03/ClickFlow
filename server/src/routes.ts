@@ -43,22 +43,33 @@ router.post("/transaction", async (req, res, next) => {
   try {
     const { user_id, item_id } = transactionSchema.parse(req.body);
 
-    await prisma.transaction.create({
+    const transaction = await prisma.transaction.create({
       data: { user_id, item_id },
     });
 
-    res.status(200).json({ success: true });
+    res
+      .status(200)
+      .json({ success: true, transaction_id: String(transaction.id) });
   } catch (err) {
     next(err);
   }
 });
 
 // --- POST /api/log (file-based event log, not stored in the DB) ---
-const logEventSchema = z.looseObject({
-  event_type: z.string(),
-  user_id: z.string(),
-  item_id: z.string().optional(),
-});
+const logEventSchema = z
+  .looseObject({
+    event_type: z.string(),
+    user_id: z.string(), // ('user_id') || 'anonymous'
+    item_id: z.string(),
+    transaction_id: z.string().optional(),
+  })
+  .refine(
+    (data) => data.event_type !== "transaction" || !!data.transaction_id,
+    {
+      message: "transaction_id is required when event_type is 'transaction'",
+      path: ["transaction_id"],
+    },
+  );
 
 router.post("/log", (req, res, next) => {
   try {
