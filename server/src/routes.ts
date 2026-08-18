@@ -33,15 +33,15 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-// --- POST /api/purchase ---
-const purchaseSchema = z.object({
+// --- POST /api/transaction ---
+const transactionSchema = z.object({
   user_id: z.string().min(1),
   item_id: z.string().min(1),
 });
 
-router.post("/purchase", async (req, res, next) => {
+router.post("/transaction", async (req, res, next) => {
   try {
-    const { user_id, item_id } = purchaseSchema.parse(req.body);
+    const { user_id, item_id } = transactionSchema.parse(req.body);
 
     await prisma.transaction.create({
       data: { user_id, item_id },

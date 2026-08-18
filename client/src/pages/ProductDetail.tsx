@@ -23,11 +23,11 @@ const ProductDetail: React.FC = () => {
             const found = res.data.find((i: Item) => i.id === id) ?? null;
             setItem(found);
         });
-        trackEvent('view_detail', id);
+        trackEvent('view', id);
     }, [id]);
 
     const handleAddToCart = () => {
-        trackEvent('add_to_cart', id);
+        trackEvent('addtocart', id);
         alert('장바구니에 담겼습니다!');
     };
 
@@ -35,8 +35,8 @@ const ProductDetail: React.FC = () => {
         const userId = localStorage.getItem('user_id');
         if (!userId || !id) return;
         try {
-            await axios.post(`${API_URL}/purchase`, { user_id: userId, item_id: id });
-            trackEvent('purchase', id);
+            await axios.post(`${API_URL}/transaction`, { user_id: userId, item_id: id });
+            trackEvent('transaction', id);
             alert('결제가 완료되었습니다!');
         } catch (err) {
             console.error('Purchase failed:', err);
