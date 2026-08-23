@@ -1,114 +1,92 @@
-# ClickFlow
+# ClickFlow - 사용자 행동 로그 데이터 기반의 준실시간 추천 파이프라인
 
-실제 쇼핑몰 서비스가 아니라, 행동 로그 수집용 프로토타입
+이커머스 환경에서 사용자 행동 이벤트(view, addtocart, transaction)를 실시간으로 수집하고, Kafka를 중심으로 데이터를 안정적으로 전달하여 ML 모델을 재학습하고 준실시간 추천을 제공하는 데이터 파이프라인입니다.
 
-운영 DB 스키마
+본 프로젝트는 추천 모델의 성능보다 **파이프라인의 안정성과 운영 가능성**에 집중합니다. 사용자가 상품을 클릭하는 순간 이벤트가 Kafka로 발행되고, 이 데이터는 S3(ML 학습용 데이터 레이크)와 추천 엔진 두 곳으로 독립적으로 전달됩니다. S3에 쌓인 데이터는 매일 새벽 배치 스케줄러를 통해 협업 필터링(ALS) 모델을 재학습하는 데 사용되며, 재학습된 모델은 성능 비교 후 Inference Server에 교체됩니다. 추천 결과는 Redis에 캐싱되어 준실시간으로 사용자에게 반환됩니다.
 
-```bash
--- items 테이블 생성
-CREATE TABLE IF NOT EXISTS items (
-    id VARCHAR(255) PRIMARY KEY,
-    item_name VARCHAR(255) NOT NULL,
-    price INT NOT NULL,
-    information TEXT,
-    image_url VARCHAR(255)
-);
+---
 
--- users 테이블
-CREATE TABLE IF NOT EXISTS users (
-    id BIGINT AUTO_INCREMENT PRIMARY KEY,
-    login_id VARCHAR(255) NOT NULL UNIQUE,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
+## Kafka 도입 근거
 
--- transactions 테이블
-CREATE TABLE IF NOT EXISTS transactions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    item_id VARCHAR(255) NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (item_id) REFERENCES items(id)
-);
+처리량이 아닌 **구조적 요구사항** 때문에 Kafka를 선택했습니다.
+
+S3(ML 학습용)와 추천 엔진, 두 Consumer가 동일한 이벤트를 각자 다른 속도로 독립적으로 소비해야 합니다. 메시지 소비 후 삭제되는 RabbitMQ나 직접 구현 시 복잡도가 높아지는 Redis Streams보다 Kafka의 Consumer Group 모델이 이 요구사항에 가장 적합하다고 판단했습니다.
+
+---
+
+## 아키텍처
+
+```
+사용자 행동 이벤트 (view / addtocart / transaction)
+        ↓
+   Web Server (Express)
+        ↓
+      Kafka
+    ↙       ↘
+S3 Consumer   DB Consumer
+    ↓               ↓
+  S3 (Data Lake)   RDS (MySQL)
+    ↓
+재학습 (cron, 매일 새벽)
+    ↓
+Inference Server ↔ Redis
+    ↓
+추천 결과 반환
 ```
 
-## Kafka (로컬)
+---
 
-`kafka-clickflow-local/docker-compose.yml` 기준 KRaft 단일 브로커 구성.
+## 검증 시나리오
 
-1. 브로커 기동
+파이프라인 구축 이후 실제 운영 환경에서 발생할 수 있는 장애 상황을 직접 재현하고 방어하는 시나리오를 검증합니다.
 
-   ```bash
-   cd kafka-clickflow-local
-   docker compose up -d
-   ```
+| 시나리오   | 내용                                                                       |
+| ---------- | -------------------------------------------------------------------------- |
+| 시나리오 0 | ML 모델 재학습 및 성능 비교 후 수동 교체                                   |
+| 시나리오 1 | Kafka 병렬 처리 중 Ordering Issue 재현 → user_id 기반 Partition Key로 해결 |
+| 시나리오 2 | Consumer 장애 복구 (Kafka Offset 기반, 데이터 유실 0건 증명)               |
+| 시나리오 3 | 트래픽 폭주 시 파이프라인 안정성 검증 (여유 시)                            |
 
-2. `user-events` 토픽 생성 (최초 1회, 브로커가 완전히 뜬 뒤에 실행)
-   ```bash
-   docker exec -it kafka kafka-topics \
-     --create \
-     --topic user-events \
-     --bootstrap-server localhost:9092 \
-     --partitions 3 \
-     --replication-factor 1
-   ```
+---
 
-### 파티션 수를 3개로 정한 이유
+## 기술 스택
 
-- 컨슈머 그룹이 S3 적재용 1개, 추천 엔진용 1개로 각 그룹의 인스턴스가 1대씩이라 병렬 처리 필요성은 아직 낮음
-- 대신 파티션 키로 순서 보장 여부를 실험해볼 목적이 큼 → 파티션이 1개면 항상 순서가 보장되는지 확인 불가
-- 파티션은 늘리는 것만 가능하고 줄이는 건 불가능해서, 나중에 nGrinder 부하 테스트로 파티션 수 늘려가며 처리량을 비교할 여지를 남겨두고 우선 3개로 시작
+| 구분          | 기술                        |
+| ------------- | --------------------------- |
+| API 서버      | Node.js (Express)           |
+| 메시지 브로커 | Apache Kafka                |
+| 데이터 레이크 | AWS S3                      |
+| 운영 DB       | AWS RDS (MySQL)             |
+| 캐시          | Redis                       |
+| 추천 모델     | 협업 필터링 (ALS)           |
+| 인프라        | AWS EC2                     |
+| 학습 데이터   | Retail Rocket 공개 데이터셋 |
 
-### 파티션 키 설계 (예정)
+---
 
-- Kafka는 파티션 내부에서만 메시지 순서를 보장하므로, 한 유저의 `view → cart → purchase` 이벤트 순서를 지키려면 `user_id`를 파티션 키로 사용해야 함
-- 지금(브로커 세팅) 단계에서는 파티션 개수만 확정하고, 실제 키 적용은 Express API의 Kafka 프로듀서 코드 작성 시 구현 예정
-  ```js
-  producer.send({
-    topic: "user-events",
-    messages: [
-      { key: userId, value: JSON.stringify(eventData) }, // key가 파티션 결정
-    ],
-  });
-  ```
+## 진행 계획
 
-### Kafka UI (메시지/클러스터 상태 확인용)
+| 기간 | 내용                                       |
+| ---- | ------------------------------------------ |
+| 6월  | DB 정비 및 사전 작업                       |
+| 7월  | Kafka 로컬 세팅, API 연결, 초기 모델 학습  |
+| 8월  | Consumer 구현, AWS 배포                    |
+| 9월  | Inference Server, 재학습 자동화, 모델 교체 |
+| 10월 | 시나리오 1, 2 검증, 모니터링 세팅          |
+| 11월 | 마무리, 발표 준비                          |
 
-토픽·파티션·컨슈머 그룹 상태를 GUI로 확인하기 위해 `docker-compose.yml`에 `kafka-ui`(provectuslabs/kafka-ui) 서비스를 추가로 구성.
+---
 
-```bash
-docker compose up -d kafka-ui
-```
+## 데이터
 
-`http://localhost:8080` 접속 후 `clickflow-local` 클러스터에서 토픽/파티션/컨슈머 상태 확인 가능.
+- **초기 학습용** : Retail Rocket 공개 데이터셋 (view / addtocart / transaction 이벤트 구조 동일)
+- **재학습용** : nGrinder로 파이프라인에 쌓인 실제 이벤트 데이터
+- 별도 데이터 생성기는 구현하지 않음
 
-#### 리스너를 3개로 분리한 이유
+---
 
-최초 구성에서는 `PLAINTEXT` 리스너 하나로 `localhost:9092`만 광고(advertise)하도록 했는데, 이 경우 `kafka-ui`처럼 **별도 컨테이너에서 브로커에 접속하는 상황**에서 연결이 계속 실패했다. `localhost`가 브로커 자신이 아니라 접속을 시도하는 컨테이너(kafka-ui) 자기 자신을 가리키기 때문. 이를 해결하기 위해 리스너를 용도별로 분리함.
+## Repository
 
-```yaml
-KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
-KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-```
-
-| 리스너 이름    | 포트  | 용도                           | 광고 주소        |
-| -------------- | ----- | ------------------------------ | ---------------- |
-| PLAINTEXT      | 29092 | 컨테이너 간 통신 (kafka-ui 등) | `kafka:29092`    |
-| PLAINTEXT_HOST | 9092  | 호스트(로컬 PC)에서 접속       | `localhost:9092` |
-| CONTROLLER     | 9093  | KRaft 내부 통신 전용           | 광고 안 함       |
-
-`kafka-ui`의 `KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS`는 컨테이너 간 통신이므로 `kafka:29092`를 사용.
-
-> 리스너 등 브로커 환경변수를 변경한 경우, 기존 데이터 볼륨에 남은 메타데이터와 충돌(`DuplicateBrokerRegistrationException`)이 발생할 수 있어 `docker compose down -v`로 볼륨까지 초기화 후 재기동해야 함.
-
-### 현재 상태
-
-| 항목                                                  | 상태                                             |
-| ----------------------------------------------------- | ------------------------------------------------ |
-| Kafka 브로커 (KRaft, combined mode)                   | 실행 중 (버전 3.6-IV2, 브로커 1대)               |
-| 리스너 구성 (PLAINTEXT / PLAINTEXT_HOST / CONTROLLER) | 분리 적용 완료                                   |
-| Kafka UI ↔ 브로커 연결                                | 정상 (Online, `clickflow-local` 클러스터 인식됨) |
-| `user-events` 토픽                                    | 재생성 완료 (파티션 3, replication factor 1)     |
-| 파티션 키(user_id) 적용                               | 미착수 — Express 프로듀서 구현 시 적용 예정      |
-
-다음 단계: Express API에 Kafka 프로듀서 연동, S3 적재용 컨슈머 및 추천 엔진용 컨슈머 구현.
+- 프로젝트 기록: https://github.com/alswn-03/capstone-record
+- Web 프로토타입: https://github.com/alswn-03/ClickFlow
+- ERD: https://github.com/alswn-03/clickflow-data-erd

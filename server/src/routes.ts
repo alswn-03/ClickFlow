@@ -33,37 +33,47 @@ router.post("/login", async (req, res, next) => {
   }
 });
 
-// --- POST /api/purchase ---
-const purchaseSchema = z.object({
+// --- POST /api/transaction (core purchase write; also emits the corresponding event log entry) ---
+const transactionSchema = z.object({
   user_id: z.string().min(1),
   item_id: z.string().min(1),
 });
 
-router.post("/purchase", async (req, res, next) => {
+router.post("/transaction", async (req, res, next) => {
   try {
-    const { user_id, item_id } = purchaseSchema.parse(req.body);
+    const { user_id, item_id } = transactionSchema.parse(req.body);
 
-    await prisma.transaction.create({
+    const transaction = await prisma.transaction.create({
       data: { user_id, item_id },
     });
+    const transactionId = String(transaction.id);
 
-    res.status(200).json({ success: true });
+    const logData = {
+      event_type: "transaction",
+      user_id,
+      item_id,
+      transaction_id: transactionId,
+      event_time: new Date().toISOString(), //✍️ 이벤트의 timestamp : 서버가 요청을 받아 핸들러를 실행하는 시점
+    };
+    fs.appendFileSync(LOG_FILE_PATH, JSON.stringify(logData) + "\n");
+
+    res.status(200).json({ success: true, transaction_id: transactionId });
   } catch (err) {
     next(err);
   }
 });
 
-// --- POST /api/log (file-based event log, not stored in the DB) ---
+// --- POST /api/log (generic, best-effort analytics event log; not stored in the DB) ---
 const logEventSchema = z.looseObject({
-  event_type: z.string(),
+  event_type: z.enum(["view", "addtocart"]),
   user_id: z.string(),
-  item_id: z.string().optional(),
+  item_id: z.string(),
 });
 
 router.post("/log", (req, res, next) => {
   try {
     const event = logEventSchema.parse(req.body);
-    const logData = { ...event, event_time: new Date().toISOString() };
+    const logData = { ...event, event_time: new Date().toISOString() }; //✍️ 이벤트의 timestamp : 서버가 요청을 받아 핸들러를 실행하는 시점
 
     fs.appendFileSync(LOG_FILE_PATH, JSON.stringify(logData) + "\n");
 

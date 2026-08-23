@@ -13,8 +13,8 @@ const Login: React.FC = () => {
         if (!userId.trim()) return;
 
         try {
-            await axios.post(`${API_URL}/login`, { login_id: userId });
-            localStorage.setItem('login_id', userId);
+            await axios.post(`${API_URL}/login`, { user_id: userId });
+            localStorage.setItem('user_id', userId);
             navigate('/products');
         } catch (err) {
             console.error('Login failed:', err);
