@@ -10,7 +10,7 @@ const kafka = new Kafka({
 const producer = kafka.producer();
 
 export async function connectProducer() {
-  await producer.connect(); // 실제 kafka 브로커와 (TCP) 연결
+  await producer.connect(); // producer(인스턴스)를 실제 kafka 브로커와 (TCP) 연결
 }
 
 // 메시지 발생 : 이벤트를 Kafka 브로커에 publish(전송)하는 함수
