@@ -3,15 +3,17 @@
 ## 전체 구조
 
 ```
+                    MySQL RDS (운영, 상품/유저 정보)
+                            ↕
 사용자 행동 이벤트 (view / addtocart / transaction)
         ↓
-   Web Server (Express)
+   👨‍💻Web Server (Express)👨‍💻 ←──────→ S3 (상품 이미지, clickflow-images)
         ↓
       Kafka (user-events 토픽)
     ↙                              ↘
 S3 Consumer                 추천 엔진 Consumer
     ↓                                    ↓
-S3 (Data Lake)              Redis (recent_activity:{user_id})
+S3 (Data Lake, raw/)        Redis (recent_activity:{user_id})
     ↓
 재학습 (cron, 매일 새벽)
     ↓
@@ -44,43 +46,65 @@ S3(ML 학습용)와 추천 엔진, 두 Consumer가 동일한 이벤트를 각자
 - KRaft 모드 (Zookeeper 미사용)
 - 파티션 3개
 
-### 3. S3 Consumer
+#### 2.1 S3 Consumer
 
 - Consumer Group: `s3-consumer-group`
 - `user-events` 토픽 구독
 - 원본 이벤트를 S3(Data Lake)에 영구 저장
 - 용도: ML 재학습용 원본 데이터 보존
 
-### 4. 추천 엔진 Consumer (Speed Layer)
+##### 2.1.1 S3 (data lake)
+
+- 역할 : 사용자 행동 이벤트의 raw 저장소 + processed 저장소
+- 접근 성격 : 프라이빗(퍼블릭 액세스 차단)
+- 구성
+  - `raw/events/{date}/*.jsonl` : Kafka S3 Consumer가 적재 (지금 작업 중)
+  - `processed/events/{date}/*.parquet` : dbt/배치 잡이 정제 후 적재 (나중 단계, 아직 미구현)
+- 소비 주체 : 배치 재학습 파이프라인, dbt (staging 단계)
+- IAM : 현재 AmazonS3FullAccess → 추후 이 버킷 prefix 단위 최소 권한으로 좁힐 예정
+
+#### 2.2 추천 엔진 Consumer (Speed Layer)
 
 - Consumer Group: `recsys-consumer-group`
 - `user-events` 토픽 구독 (S3 Consumer와 독립적으로 소비)
 - 유저의 최근 행동을 Redis에 실시간 기록 (`recent_activity:{user_id}`)
 - 1단계에서는 데이터 적재까지만 구현, 실제 재랭킹 반영은 2단계(개인 목표)에서 진행
 
-### 5. 재학습 파이프라인 (Batch Layer)
-
-- cron 기반, 매일 새벽 실행
-- S3에 쌓인 데이터로 협업 필터링(ALS) 모델 재학습
-- 재학습 전/후 성능 비교 → 개선 확인 시 Inference Server에 수동 교체
-- 유저별 추천 후보(Top-N)를 미리 계산해 Redis에 저장 (`recommendation:{user_id}`)
-
-### 6. Redis
+##### 2.2.1 Redis
 
 | Key 패턴                    | 생성 주체                        | 용도                                   |
 | --------------------------- | -------------------------------- | -------------------------------------- |
 | `recommendation:{user_id}`  | 배치 재학습 (Batch Layer)        | 서빙 시 즉시 조회되는 완성된 추천 결과 |
 | `recent_activity:{user_id}` | 추천 엔진 Consumer (Speed Layer) | 최근 행동 이력 (향후 재랭킹 입력값)    |
 
-### 7. Inference Server
+### 3. 재학습 파이프라인 (Batch Layer)
+
+- cron 기반, 매일 새벽 실행
+- S3에 쌓인 데이터로 협업 필터링(ALS) 모델 재학습
+- 재학습 전/후 성능 비교 → 개선 확인 시 Inference Server에 수동 교체
+- 유저별 추천 후보(Top-N)를 미리 계산해 Redis에 저장 (`recommendation:{user_id}`)
+
+### 4. Inference Server
 
 - 사용자 요청 시 Redis에서 `recommendation:{user_id}` 조회 후 즉시 반환
 - 요청마다 모델을 다시 계산하지 않음 (무거운 연산은 배치 단계에서 완료)
 
-### 8. RDS (MySQL)
+### 5. RDS (MySQL)
 
 - 운영 DB. 구매 이력(transaction) 등 비즈니스 데이터를 API 서버가 직접 저장
 - Kafka를 거치지 않음 (이벤트 스트리밍과 별개의 목적)
+
+### 6. S3 (상품 이미지 저장/서빙)
+
+- 접근 성격 : 퍼블릭 읽기 또는 CloudFront 연결 필요 (이벤트 버킷과 반대)
+- 라이프사이클 : 삭제/이관 없이 지속 유지
+- IAM : 별도 사용자/권한으로 분리 예정 (이벤트 Consumer 권한과 섞지 않음)
+
+### 7. RDS (향후 추가 구현 예정 - Data Warehouse, Data Mart)
+
+- dbt가 S3 processed/(또는 raw/)를 읽어 최종 적재하는 정형 분석 테이블
+- staging 스키마 — S3 데이터를 1차 로드한 것
+- mart 스키마 — 분석/대시보드용 최종 테이블 (예: user_behavior_daily)
 
 ---
 
