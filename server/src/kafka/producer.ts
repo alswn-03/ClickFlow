@@ -2,16 +2,17 @@
 ⭐️ Express 서버 ↔ Kafka 브로커 : Kafka producer를 통해 발생한 이벤트를 Kafka 브로커에 publish하는 로직
 */
 
-import { kafka } from "./client.js";
+import { createKafkaClient } from "./client.js";
 // import { Kafka } from "kafkajs";
 
-// // Kafka 클라이언트 생성
+// 0.0 Kafka 클라이언트 생성
+const kafka = createKafkaClient("clickflow-producer");
 // export const kafka = new Kafka({
-//   clientId: "clickflow-api", // Kafka 브로커가 '이 요청이 어디서 온거지?'를 구분하기 위해 사용하는 이름표
+//   clientId: "clickflow-producer", // Kafka 브로커가 '이 요청이 어디서 온거지?'를 구분하기 위해 사용하는 이름표
 //   brokers: ["localhost:9092"], // 실제 연결 - Kafka 브로커의 주소
 // });
 
-// 0. producer(인스턴스) 생성
+// 0.1 producer(인스턴스) 생성
 const producer = kafka.producer();
 
 // 1. Express 서버(app.ts) -> producer.ts : connectProducer() 호출
