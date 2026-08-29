@@ -12,6 +12,7 @@
     "postinstall": "pnpm run generate",
     "predev": "pnpm run generate",
     "dev": "tsx watch src/app.ts",
+    "consumer:s3": "tsx src/kafka/runners/runS3Consumer.ts",
     "build": "tsc --noEmit",
     "db:push": "prisma db push",
     "lint": "eslint .",

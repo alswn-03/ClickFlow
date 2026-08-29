@@ -55,6 +55,22 @@ S3(ML 학습용)와 추천 엔진, 두 Consumer가 동일한 이벤트를 각자
 - 원본 이벤트를 S3(Data Lake)에 영구 저장
 - 용도: ML 재학습용 원본 데이터 보존
 
+##### 상세 흐름 (파일 단위)
+
+```
+[사용자 브라우저]
+      ↓ (HTTP 요청: 클릭, 장바구니 추가 등)
+[Express API 서버 (app.ts, routes.ts)]
+      ↓ producer.ts의 publishEvent() 호출
+[Kafka 브로커 (localhost:9092, user-events 토픽)]
+      ↓ (여기서부터 s3Consumer.ts 담당 구간)
+      ↓ consumer.subscribe + consumer.run으로 메시지 수신
+[s3Consumer.ts 프로세스]
+      ↓ 메시지를 buffer에 모았다가
+      ↓ S3Client.send(PutObjectCommand)로 업로드
+[AWS S3 버킷 (clickflow-dl-bucket)]
+```
+
 ##### 2.1.1 S3 (data lake) 🚧
 
 - 역할 : 사용자 행동 이벤트의 raw 저장소
