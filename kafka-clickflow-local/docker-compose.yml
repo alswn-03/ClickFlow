@@ -39,3 +39,14 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: clickflow-local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092 # kafka 컨테이너끼리 통신하는 포트
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
