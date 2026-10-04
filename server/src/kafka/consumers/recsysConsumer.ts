@@ -26,7 +26,7 @@ export async function runRecsysConsumer() {
   await consumer.subscribe({ topic: "user-events", fromBeginning: false });
 
   await consumer.run({
-    eachMessage: async ({ message }) => {
+    eachMessage: async ({ partition, message }) => {
       const event = JSON.parse(message.value!.toString());
       const key = `recent_activity:${event.user_id}`;
 
@@ -39,6 +39,9 @@ export async function runRecsysConsumer() {
 
       console.log(
         `[RecsysConsumer] ${event.user_id} <- ${event.event_type}:${event.item_id}`,
+      );
+      console.log(
+        `[recsys] partition=${partition} offset=${message.offset} user=${event.user_id} item=${event.item_id}`,
       );
     },
   });
